@@ -1,4 +1,5 @@
 from django.shortcuts import render
+from django.http import HttpResponse
 
 DATA = {
     'omlet': {
@@ -16,8 +17,21 @@ DATA = {
         'сыр, ломтик': 1,
         'помидор, ломтик': 1,
     },
-    # можете добавить свои рецепты ;)
+
 }
+def recipe_view(request, dish):
+    servings = int(request.GET.get('servings', 1))
+
+    if dish in DATA:
+        recipe = DATA[dish]
+        for ingredient, amount in recipe.items():
+            recipe[ingredient] = amount * servings
+        context = {
+            'recipe': recipe
+        }
+        return render(request, 'calculator/index.html', context)
+    else:
+        return HttpResponse('Рецепт не найден', status=404)
 
 # Напишите ваш обработчик. Используйте DATA как источник данных
 # Результат - render(request, 'calculator/index.html', context)
