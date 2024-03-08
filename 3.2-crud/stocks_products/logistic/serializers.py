@@ -1,43 +1,47 @@
 from rest_framework import serializers
-
+from .models import Product, Stock, StockProduct
 
 class ProductSerializer(serializers.ModelSerializer):
-    # настройте сериализатор для продукта
-    pass
+    class Meta:
+        model = Product
+        fields = '__all__'
 
-
-class ProductPositionSerializer(serializers.ModelSerializer):
-    # настройте сериализатор для позиции продукта на складе
-    pass
-
+class StockProductSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = StockProduct
+        fields = ('product', 'quantity', 'price')
 
 class StockSerializer(serializers.ModelSerializer):
-    positions = ProductPositionSerializer(many=True)
+    positions = StockProductSerializer(many=True)
 
-    # настройте сериализатор для склада
+    class Meta:
+        model = Stock
+        fields = ('id', 'address', 'positions')
 
     def create(self, validated_data):
-        # достаем связанные данные для других таблиц
-        positions = validated_data.pop('positions')
+        positions_data = validated_data.pop('positions')
+        stock = Stock.objects.create(**validated_data)
 
-        # создаем склад по его параметрам
-        stock = super().create(validated_data)
-
-        # здесь вам надо заполнить связанные таблицы
-        # в нашем случае: таблицу StockProduct
-        # с помощью списка positions
+        for position_data in positions_data:
+            StockProduct.objects.create(stock=stock, **position_data)
 
         return stock
 
     def update(self, instance, validated_data):
-        # достаем связанные данные для других таблиц
-        positions = validated_data.pop('positions')
+        positions_data = validated_data.pop('positions')
+        positions = (instance.positions).all()
+        positions = list(positions)
 
-        # обновляем склад по его параметрам
-        stock = super().update(instance, validated_data)
+        instance.address = validated_data.get('address', instance.address)
+        instance.save()
 
-        # здесь вам надо обновить связанные таблицы
-        # в нашем случае: таблицу StockProduct
-        # с помощью списка positions
+        for position_data in positions_data:
+            position = positions.pop(0)
+            position.product = position_data.get('product', position.product)
+            position.quantity = position_data.get('quantity', position.quantity)
+            position.price = position_data.get('price', position.price)
+            position.save()
 
-        return stock
+        return instance
+
+
